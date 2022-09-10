@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yb-ulp
+  labels:
+    app: yb-ulp
+  namespace: opni-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yb-ulp
+  template:
+    metadata:
+      labels:
+        app: yb-ulp
+    spec:
+      volumes:
+      - name: nkey
+        secret:
+          defaultMode: 420
+          secretName: opni-nats-client
+      containers:
+      - env:
+        - name: TRAINING_INTERVAL
+          value: "1800"
+        - name: NATS_SERVER_URL
+          value: nats://opni-nats-client.opni-system.svc:4222
+        - name: NKEY_SEED_FILENAME
+          value: /etc/nkey/seed
+        - name: ES_ENDPOINT
+          value: https://opni-os-svc.opni-system.svc:9200
+        - name: ES_USERNAME
+          value: admin
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: external-os-password
+        image: docker.io/tybalex/opni-parsing:dev
+        imagePullPolicy: Always
+        name: yb-ulp
+        volumeMounts:
+        - mountPath: /etc/nkey
+          name: nkey
+          readOnly: true
