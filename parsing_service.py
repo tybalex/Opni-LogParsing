@@ -80,7 +80,8 @@ async def parsing_logs(queue):
         json_payload = await queue.get()
         pending_list.append(json_payload)
         this_time = time.time()
-        if grouping_rule_to_template_dict is None:
+        if grouping_rule_to_template_dict is None:  # training
+            # TODO training on new templates and merge templates by string similarity
             if (
                 this_time - last_time >= TRAINING_INTERVAL
                 or len(pending_list) >= TRAINING_DATA_VOL
