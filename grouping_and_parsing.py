@@ -1,31 +1,21 @@
 # Standard Library
+import logging
 import warnings
 from collections import Counter, defaultdict
 from string import punctuation
+from typing import DefaultDict, List, Tuple
 
 # Third Party
 import pandas as pd
 import regex as re
+from pandas.core.groupby import DataFrameGroupBy
 
 # Local
+from json_parsing import parse_json
 from ulp_tokenize import mytokenize
 from utils import read_input, write_to_file
 
-# K-MEANS CLUSTERING
-# Importing Modules
-
-# import re
-# from nltk.corpus import words
-
-
-# from textpack import tp
-# from string_grouper import match_strings, match_most_similar, group_similar_strings, compute_pairwise_similarities, StringGrouper
-
-
 warnings.filterwarnings("ignore")
-
-# Standard Library
-import logging
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__file__)
@@ -64,23 +54,26 @@ def getDynamicVars2(petit_group):
     return vec
 
 
-def remove_word_with_special(sentence):
+def remove_word_with_special(sentence: str) -> str:
     sentence = sentence.translate({ord(c): "" for c in r"!@#$%^&*()[]{};:,/<>?\|`~-=+"})
     length = len(splitted_sentence := sentence.split())
-    finale = ""
+    finale = []
     for word in splitted_sentence:
         if len(word) > 1 and all(c.isalpha() for c in word):
-            finale += word
+            finale.append(word)
 
-    finale = finale + str(length)
+    finale.append(str(length))
+    finale = " ".join(finale)
     return finale
 
 
-def get_only_letters(sentence):
+def get_only_letters(sentence: str) -> str:
     return "".join([i for i in sentence.split() if not i.isdigit()])
 
 
-def create_template(groups):
+def create_template(
+    groups: DataFrameGroupBy,
+) -> Tuple[DefaultDict[str, List[str]], DefaultDict[str, str]]:
     grouping_rule_to_template_dict = defaultdict(str)
     template_to_grouping_rule_dict = defaultdict(list)
     re_list2 = ["[ ]{1,}[-]*[0-9]+[ ]{1,}", r' "\d+" ']
@@ -159,19 +152,21 @@ def log_parsing(dataset_name: str, logformat: str, logpai_data: bool = True):
     else:  ## opni data
         input_file = "opni-input/" + dataset_name
     logdf = read_input(input_file, logformat, logpai_data)
+    logdf["log"] = logdf["Content"]
+    logdf = parse_json(logdf)
     (
         template_to_grouping_rule_dict,
         grouping_rule_to_template_dict,
     ) = log_offline_parsing(logdf)
-    log_online_matching(
-        logdf, template_to_grouping_rule_dict, grouping_rule_to_template_dict
-    )
+    log_online_matching(logdf, grouping_rule_to_template_dict)
 
     output_file = write_to_file(dataset_name, template_to_grouping_rule_dict)
     return output_file
 
 
-def log_offline_parsing(logdf: pd.DataFrame):
+def log_offline_parsing(
+    logdf: pd.DataFrame,
+) -> Tuple[DefaultDict[str, List[str]], DefaultDict[str, str]]:
     """
     offline training parsing, should be used as to kickoff parsing in online manner
     """
@@ -192,7 +187,9 @@ def log_offline_parsing(logdf: pd.DataFrame):
     return template_to_grouping_rule_dict, grouping_rule_to_template_dict
 
 
-def log_online_matching(logdf: pd.DataFrame, grouping_rule_to_template_dict):
+def log_online_matching(
+    logdf: pd.DataFrame, grouping_rule_to_template_dict: DefaultDict[str, str]
+) -> List[str]:
     """
     online prediction
     """
