@@ -130,7 +130,10 @@ def read_input(input_file, logformat, logpai_data):
             if logpai_data:
                 line1 = line
             else:
-                line1 = json.loads(line)["log"]
+                try:
+                    line1 = json.loads(line)["log"]
+                except:
+                    line1 = line
             try:
                 match = regex.search(line1.strip())
                 message = [match.group(header) for header in headers]

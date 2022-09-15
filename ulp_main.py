@@ -15,4 +15,5 @@ def generate_file(dataset_name, format_t, is_logpai: bool = True):
 
 
 generate_file("rancher_training_dataset.txt", "<Content>", is_logpai=False)
+# generate_file("my-test.txt", "<Content>", is_logpai=False)
 # generate_file("finalized_longhorn_training_dataset.txt", "<Content>", is_logpai = False)

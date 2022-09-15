@@ -85,7 +85,9 @@ def create_template(
 
         if slc.size > 1:
             l = getDynamicVars2(slc)
-            dynamic_token_pat = r"\b(?:{})\b".format("|".join(str(v) for v in l))
+            dynamic_token_pat = r"\b(?:{})\b".format(
+                "|".join(str(v) for v in l)
+            )  # TODO it can be buggy. needs fix
             if len(l) > 0:
                 template = re.sub(dynamic_token_pat, "<*>", template)
 
