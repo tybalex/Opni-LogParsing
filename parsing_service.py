@@ -99,6 +99,7 @@ async def parsing_logs(queue):
             this_time - last_time >= 1 or len(pending_list) >= 1000
         ):  # every seconds or every 1000 docs
             #  inferencing
+            parsing_start = time.time()
             payload_data_df = pd.json_normalize(pending_list)
             payload_data_df = parse_json(payload_data_df)
             logging.info(f"processing {len(pending_list)} logs...")
@@ -112,6 +113,9 @@ async def parsing_logs(queue):
 
             payload_data_df["ulp_template"] = json_parsing_postprocess(
                 payload_data_df, matched_templates
+            )
+            logging.info(
+                f"total time taken on this batch : {time.time() - parsing_start}"
             )
             payload_data_df.drop(["parsed_json"], axis=1, errors="ignore", inplace=True)
             payload_data_df.drop(["parsed_log"], axis=1, errors="ignore", inplace=True)

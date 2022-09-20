@@ -1,16 +1,26 @@
 # Standard Library
 import json
 import logging
+import time
 from typing import Any, Dict, List
 
 # Third Party
 import pandas as pd
+import regex as re
 
-LOG_FIELDS = ["message", "log", "Message", "MESSAGE", "LOG", "Log"]
+LOG_FIELDS = ["message", "log"]
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__file__)
 logger.setLevel("DEBUG")
+
+
+pat = re.compile(r"\{(?:[^{}]|(?R))*\}")  # requires regex lib
+
+
+def match_embedded_json_string(compiled_pattern, string: str):
+    res = compiled_pattern.search(string)
+    return res
 
 
 def _flatten_nested_json(
@@ -35,8 +45,6 @@ def _flatten_nested_json(
             new_key = f"{key_string}{separator}{key}"
             _flatten_nested_json(
                 data=value,
-                # to avoid adding the separator to the start of every key
-                # GH#43831 avoid adding key if key_string blank
                 key_string=new_key
                 if new_key[: len(separator)] != separator
                 else new_key[len(separator) :],
@@ -69,21 +77,36 @@ def _flatten_json(data: Dict[str, Any], separator: str = ".") -> Dict[str, Any]:
 
 
 def parse_json(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    main function to parse json string, detected and parse nested/embedded json
+    """
     loaded_json = []
     actual_logs = []
+    st = time.time()
     for _, line in df.iterrows():
         loaded = None
         parsed_log = line["log"]
+        # if match_embedded_json_string(pat, str(line["log"])) is not None:
         try:
             loaded = _flatten_json(json.loads(line["log"]))
-            for f in LOG_FIELDS:
-                if f in loaded:
-                    parsed_log = loaded[f]
-                    break
         except Exception as e:
             pass
+        if loaded is not None:
+            for f in loaded.keys():
+                if f.lower() in LOG_FIELDS:
+                    parsed_log = loaded[f]
+                    embedded_json = match_embedded_json_string(pat, str(parsed_log))
+                    if embedded_json is not None:
+                        loaded["log_embedded_json"] = embedded_json.group()
+                    break
+
         loaded_json.append(loaded)
         actual_logs.append(parsed_log)
+    logger.info(f"json parsing time taken : {time.time() - st} on {len(df)} data point")
+    df["embedded_json_tested"] = [
+        l["log_embedded_json"] if l is not None and "log_embedded_json" in l else ""
+        for l in loaded_json
+    ]
     df["parsed_json"] = loaded_json
     df["parsed_log"] = actual_logs
     return df
@@ -99,7 +122,7 @@ def json_parsing_postprocess(
                 if key in LOG_FIELDS:
                     json_obj[key] = matched_templates[idx]
                 else:
-                    json_obj[key] = "<*>"
+                    json_obj[key] = "*"
                     # if any(c.isdigit() for c in str(line["parsed_json"][key])):
                     #     json_obj[key] = "<*>"
                     # else:
@@ -109,6 +132,7 @@ def json_parsing_postprocess(
 
 
 if __name__ == "__main__":
+
     d1 = {
         "severity": "info",
         "time": 1663210318369,
@@ -120,4 +144,12 @@ if __name__ == "__main__":
         "v": 1,
     }
     x1 = _flatten_json(d1, ".")
-    print(x1)
+    # print(x1)
+    x2 = 'PaymentService#Charge invoked with request {"amount":{"currency_code":"USD","units":"0","nanos":0},"credit_card":{"credit_card_number":"4432-8015-6152-0454","credit_card_cvv":672,"credit_card_expiration_year":2039,"credit_card_expiration_month":1}}'
+    res = match_embedded_json_string(pat, str(x2))
+    print(res.group())
+    l1 = [{"log": x2}] * 10000
+    df = pd.DataFrame(l1)
+    t1 = time.time()
+    parse_json(df)
+    print(time.time() - t1)
