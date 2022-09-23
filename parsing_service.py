@@ -14,7 +14,7 @@ from opni_nats import NatsWrapper
 
 # Local
 from grouping_and_parsing import log_offline_parsing, log_online_matching
-from json_parsing import json_parsing_postprocess, parse_json
+from json_parsing import parse_json
 from masker import LogMasker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(message)s")
@@ -111,13 +111,11 @@ async def parsing_logs(queue):
             pending_list = []
             last_time = this_time
 
-            payload_data_df["ulp_template"] = json_parsing_postprocess(
-                payload_data_df, matched_templates
-            )
+            payload_data_df["ulp_template"] = matched_templates
             logging.info(
                 f"total time taken on this batch : {time.time() - parsing_start}"
             )
-            payload_data_df.drop(["parsed_json"], axis=1, errors="ignore", inplace=True)
+            payload_data_df.drop(["parsed_info"], axis=1, errors="ignore", inplace=True)
             payload_data_df.drop(["parsed_log"], axis=1, errors="ignore", inplace=True)
             payload_data_df.drop(["_type"], axis=1, errors="ignore", inplace=True)
             payload_data_df.drop(["_version"], axis=1, errors="ignore", inplace=True)
